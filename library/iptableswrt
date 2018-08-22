@@ -1,0 +1,27 @@
+#!/bin/sh
+# wrapper for conditional setting of iptables
+
+# parameters are command, key, value
+source ${1}
+
+
+[ ! -z "$protocol" ] && opts="$opts -p $(echo $protocol | sed -e s/\'//g)"
+[ ! -z "$in_interface" ] && opts="$opts -i $(echo $in_interface | sed -e s/\'//g)"
+[ ! -z "$out_interface" ] && opts="$opts -o $(echo $out_interface | sed -e s/\'//g)"
+# I can't put quote to the comment
+#[ ! -z "$comment" ] && opts="$opts -m comment --comment \"$comment\""
+
+# test if we need to apply a change
+iptables -t $table -C $chain -j $jump $opts
+changed=$?
+
+if [ $changed -eq 0 ]
+then
+    echo -n '{"changed": false}'
+else
+    if [ -z "${_ansible_check_mode}" -o "${_ansible_check_mode}" = "False" ]
+    then
+        logger iptables $(iptables -t $table -I $chain -j $jump $opts)
+    fi
+    echo -n '{"changed": true, "msg": "executed iptables -t '$table' -A '$chain' -j '$jump' '$opts'"'
+fi
